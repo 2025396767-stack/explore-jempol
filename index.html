@@ -1,0 +1,1354 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Jelajah Jempol: Misi Pasport Pelancongan</title>
+    <!-- Tailwind CSS for UI Layout -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Press+Start+2P&family=Quicksand:wght@500;700&display=swap');
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            font-family: 'Quicksand', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+            overflow: hidden;
+            touch-action: manipulation;
+            user-select: none;
+        }
+
+        .pixel-font {
+            font-family: 'Press Start 2P', cursive;
+        }
+
+        .title-font {
+            font-family: 'Fredoka One', cursive;
+        }
+
+        /* Fully Responsive Canvas Container */
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #0f172a;
+            overflow: hidden;
+        }
+
+        canvas {
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+            background-color: #38bdf8;
+            aspect-ratio: 9 / 16;
+            max-width: 100%;
+            max-height: 100%;
+            width: auto;
+            height: auto;
+            object-fit: contain;
+        }
+
+        /* UI Overlays */
+        .overlay {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 20;
+            background: rgba(15, 23, 42, 0.88);
+            backdrop-filter: blur(8px);
+            padding: 1rem;
+            overflow-y: auto;
+        }
+
+        /* Custom Buttons */
+        .btn {
+            font-family: 'Fredoka One', cursive;
+            padding: 12px 28px;
+            font-size: 1.15rem;
+            border-radius: 9999px;
+            border: 4px solid #ffffff;
+            box-shadow: 0 6px 0 rgba(0,0,0,0.3);
+            transition: all 0.1s ease;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 0 rgba(0,0,0,0.3);
+        }
+
+        .btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 rgba(0,0,0,0.3);
+        }
+
+        .btn-primary { background: linear-gradient(180deg, #22c55e, #15803d); color: white; }
+        .btn-warning { background: linear-gradient(180deg, #eab308, #ca8a04); color: white; }
+        .btn-danger  { background: linear-gradient(180deg, #ef4444, #b91c1c); color: white; }
+        .btn-alt     { background: linear-gradient(180deg, #3b82f6, #1d4ed8); color: white; }
+        .btn-small   { padding: 6px 16px; font-size: 0.85rem; border-width: 2px; }
+
+        /* Touch Control Overlay for Mobile */
+        .touch-btn {
+            background: rgba(255, 255, 255, 0.25);
+            border: 3px solid rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(4px);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.5rem;
+            user-select: none;
+            touch-action: manipulation;
+        }
+
+        .touch-btn:active {
+            background: rgba(255, 255, 255, 0.5);
+            transform: scale(0.95);
+        }
+
+        /* Animations */
+        @keyframes pulseGlow {
+            0%, 100% { transform: scale(1); filter: drop-shadow(0 0 10px rgba(250, 204, 21, 0.8)); }
+            50% { transform: scale(1.04); filter: drop-shadow(0 0 18px rgba(250, 204, 21, 1)); }
+        }
+
+        .pulse-animation {
+            animation: pulseGlow 2s infinite ease-in-out;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <!-- Main Game Canvas -->
+        <canvas id="gameCanvas" width="1080" height="1920"></canvas>
+
+        <!-- Top Right Navigation UI -->
+        <div id="top-ui" class="absolute top-4 right-4 z-30 flex gap-2 sm:gap-3 hidden">
+            <button class="btn btn-warning btn-small m-0" onclick="togglePause()">⏸️ PAUSE</button>
+            <button class="btn btn-alt btn-small m-0" onclick="toggleMute()" id="mute-btn">🎵 MUZIK: ON</button>
+        </div>
+
+        <!-- In-Game HUD -->
+        <div id="hud" class="absolute top-4 left-4 right-4 z-30 flex flex-wrap justify-between items-center gap-2 pointer-events-none hidden font-bold text-xs sm:text-base">
+            <div class="flex gap-3 sm:gap-4 bg-black/60 px-4 py-2 rounded-full border-2 border-white/20 backdrop-blur-md pointer-events-auto">
+                <div id="hud-score" class="text-yellow-400">SKOR: 0</div>
+                <div id="hud-lives" class="text-rose-400">NYAWA: ❤️❤️❤️</div>
+            </div>
+            <div class="flex gap-3 sm:gap-4 bg-black/60 px-4 py-2 rounded-full border-2 border-white/20 backdrop-blur-md pointer-events-auto">
+                <div id="hud-objective" class="text-emerald-300">OBJEKTIF: KUMPUL BINTANG</div>
+                <div id="hud-passport" class="text-sky-300">COP: 0/2</div>
+            </div>
+        </div>
+
+        <!-- Touch Controls for Mobile Screens -->
+        <div id="mobile-controls" class="absolute inset-0 pointer-events-none z-30 hidden">
+            <!-- Left D-Pad -->
+            <div class="absolute bottom-6 left-4 sm:bottom-10 sm:left-6 flex gap-3 sm:gap-4 pointer-events-auto">
+                <div id="btn-left" class="touch-btn w-16 h-16 sm:w-20 sm:h-20 text-xl sm:text-2xl">◀</div>
+                <div id="btn-right" class="touch-btn w-16 h-16 sm:w-20 sm:h-20 text-xl sm:text-2xl">▶</div>
+            </div>
+            <!-- Action Buttons -->
+            <div class="absolute bottom-6 right-4 sm:bottom-10 sm:right-6 flex gap-3 pointer-events-auto">
+                <div id="btn-jump" class="touch-btn w-20 h-20 sm:w-24 sm:h-24 bg-emerald-500/40 border-emerald-300 text-xs sm:text-sm font-bold">LOMPAT</div>
+            </div>
+        </div>
+
+        <!-- UI Overlay: Main Menu -->
+        <div id="menu-screen" class="overlay">
+            <div class="text-center max-w-lg w-full px-4 my-auto">
+                <div class="inline-block bg-emerald-600/30 text-emerald-300 px-4 py-1 rounded-full text-xs sm:text-sm font-bold border border-emerald-400/40 mb-3">
+                    NEGERI SEMBILAN ADVENTURE
+                </div>
+                <h1 class="title-font text-4xl sm:text-6xl text-yellow-400 drop-shadow-[0_5px_5px_rgba(0,0,0,0.8)] mb-2">
+                    JELAJAH JEMPOL
+                </h1>
+                <p class="text-sky-200 text-base sm:text-lg font-medium mb-6">Misi Pasport Pelancongan Alam Semula Jadi</p>
+
+                <!-- Player Name Input Only -->
+                <div class="bg-slate-900/80 p-5 sm:p-6 rounded-3xl border-2 border-white/20 mb-6 text-left shadow-xl">
+                    <label class="block text-xs sm:text-sm font-bold text-slate-300 mb-2">NAMA PELANCONG:</label>
+                    <input type="text" id="player-name" value="Pengembara" maxlength="15" 
+                        class="w-full bg-slate-800 border-2 border-slate-600 rounded-xl px-4 py-3 text-white font-bold text-center text-lg sm:text-xl focus:outline-none focus:border-yellow-400">
+                </div>
+
+                <div class="flex flex-col gap-3">
+                    <button class="btn btn-primary pulse-animation" onclick="startGameFlow()">🚀 MULA MAIN</button>
+                    <div class="flex gap-3 justify-center">
+                        <button class="btn btn-warning btn-small" onclick="showUI('howto-screen')">📖 CARA BERMAIN</button>
+                        <button class="btn btn-alt btn-small" onclick="showHighscore()">🏆 SKOR TERTINGGI</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- UI Overlay: Destination Map -->
+        <div id="map-screen" class="overlay hidden">
+            <!-- Back Button Top Left -->
+            <button type="button" class="btn btn-alt btn-small absolute top-4 left-4 z-50 m-0 pointer-events-auto" onclick="showMainMenu()">🏠 KEMBALI</button>
+            <div class="text-center mb-4 sm:mb-6 px-4 pt-12 sm:pt-0">
+                <h2 class="title-font text-3xl sm:text-4xl text-yellow-400 drop-shadow-md">PETA DESTINASI JEMPOL</h2>
+                <p class="text-slate-200 text-xs sm:text-base">Pilih destinasi pelancongan mengikut turutan untuk mengumpul cop pasport!</p>
+            </div>
+            
+            <div class="relative w-full max-w-xs sm:max-w-md h-[550px] sm:h-[680px] bg-emerald-950/40 rounded-3xl border-4 border-emerald-500/40 p-4 flex items-center justify-center">
+                <!-- Map Nodes -->
+                <div id="map-nodes-container" class="relative w-full h-full">
+                    <!-- Dynamic Destination Nodes rendered via JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- UI Overlay: Instructions -->
+        <div id="howto-screen" class="overlay hidden">
+            <div class="bg-slate-900/90 text-white p-8 rounded-3xl border-4 border-yellow-400 max-w-lg text-center shadow-2xl">
+                <h2 class="title-font text-3xl text-yellow-400 mb-4">CARA BERMAIN</h2>
+                <div class="text-left space-y-3 text-sm sm:text-base mb-6 text-slate-200">
+                    <p>🎮 <b>Kawalan Papan Kekunci:</b> Gunakan [A][D] atau [Anak Panah Kiri/Kanan] untuk bergerak. Tekan [SPACE] atau [W] untuk melompat.</p>
+                    <p>📱 <b>Kawalan Sentuhan:</b> Gunakan butang di skrin pada peranti telefon atau tablet.</p>
+                    <p>❤️ <b>Sistem Nyawa:</b> Anda mempunyai 3 Nyawa pada setiap destinasi. Berhati-hati dengan halangan!</p>
+                    <p>🌟 <b>Tugasan:</b> Selesaikan 2 aktiviti pelancongan di Jempol dan jawab kuiz pengukuhan untuk mendapat cop pasport!</p>
+                </div>
+                <button class="btn btn-warning" onclick="showUI('menu-screen')">TUTUP</button>
+            </div>
+        </div>
+
+        <!-- UI Overlay: Pause -->
+        <div id="pause-screen" class="overlay hidden">
+            <div class="bg-slate-900/95 p-8 rounded-3xl border-4 border-sky-400 text-center max-w-sm">
+                <h2 class="title-font text-4xl text-sky-400 mb-6">PERMAINAN DIPAUS</h2>
+                <div class="flex flex-col gap-3">
+                    <button class="btn btn-primary" onclick="togglePause()">▶ SAMBUNG</button>
+                    <button class="btn btn-warning" onclick="restartCurrentGame()">🔄 RESTART LEVEL</button>
+                    <button class="btn btn-alt" onclick="goToMap()">🗺️ PETA DESTINASI</button>
+                    <button class="btn btn-danger" onclick="showMainMenu()">🏠 MENU UTAMA</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- UI Overlay: Game Over (Try Again) -->
+        <div id="gameover-screen" class="overlay hidden">
+            <div class="bg-rose-950/90 text-white p-8 rounded-3xl border-8 border-rose-600 max-w-md text-center shadow-2xl">
+                <span class="text-6xl mb-2 inline-block">💔</span>
+                <h2 class="pixel-font text-3xl text-rose-400 mb-2">NYAWA HABIS!</h2>
+                <p class="text-lg font-bold text-slate-200 mb-6">Jangan berputus asa! Pengembaraan Jempol masih menanti anda.</p>
+                <div class="flex flex-col gap-3">
+                    <button class="btn btn-warning w-full m-0" onclick="restartCurrentGame()">🔄 CUBA LAGI</button>
+                    <button class="btn btn-alt w-full m-0" onclick="goToMap()">🏠 KEMBALI KE PETA</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- UI Overlay: Educational Quiz -->
+        <div id="quiz-screen" class="overlay hidden">
+            <div class="bg-slate-900/95 text-white p-8 rounded-3xl border-4 border-yellow-400 max-w-xl w-full text-center shadow-2xl relative">
+                <div class="inline-block bg-yellow-400 text-slate-950 font-bold px-4 py-1 rounded-full text-xs mb-3">
+                    KUIZ ILMU PELANCONGAN JEMPOL
+                </div>
+                <h3 id="quiz-question" class="title-font text-2xl text-yellow-300 mb-6 leading-relaxed">
+                    Soalan Kuiz...
+                </h3>
+                
+                <div id="quiz-options" class="grid grid-cols-1 gap-3 mb-6">
+                    <!-- Dynamic Option Buttons -->
+                </div>
+
+                <div id="quiz-feedback" class="hidden p-4 rounded-2xl bg-slate-800 border border-slate-700 mb-4 text-left">
+                    <div id="quiz-feedback-title" class="font-bold text-lg mb-1"></div>
+                    <div id="quiz-fact" class="text-sm text-slate-300"></div>
+                </div>
+
+                <button id="quiz-continue-btn" class="btn btn-primary hidden w-full" onclick="completeLevelAfterQuiz()">
+                    LOKASI SETERUSNYA 🗺️
+                </button>
+            </div>
+        </div>
+
+        <!-- UI Overlay: Level Complete -->
+        <div id="level-complete-screen" class="overlay hidden">
+            <div class="bg-slate-900/95 text-white p-8 rounded-3xl border-4 border-emerald-400 text-center max-w-md">
+                <div class="text-6xl mb-2">🎉</div>
+                <h2 class="title-font text-3xl text-emerald-400 mb-2">DESTINASI SELESAI!</h2>
+                <p id="level-complete-msg" class="text-slate-300 mb-6">Tahniah! Anda telah berjaya mengumpul cop pasport bagi destinasi ini.</p>
+                <div class="flex flex-col gap-3">
+                    <button class="btn btn-primary w-full m-0" onclick="goToMap()">🗺️ PETA DESTINASI</button>
+                    <button class="btn btn-alt w-full m-0" onclick="goToMap()">🏠 KEMBALI KE PETA</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- UI Overlay: Victory / Certificate -->
+        <div id="victory-screen" class="overlay hidden">
+            <div class="bg-slate-900/95 text-white p-8 rounded-3xl border-4 border-yellow-400 text-center max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                <div class="text-6xl mb-2">🏆</div>
+                <h2 class="title-font text-4xl text-yellow-400 mb-2">TAHNIAH! ANDA BERJAYA!</h2>
+                <p class="text-slate-200 text-lg mb-6">Anda kini diiktiraf sebagai <b>PENJELAJAH HEBAT JEMPOL</b>!</p>
+                
+                <!-- Certificate Preview Box -->
+                <div class="bg-amber-50 text-slate-900 p-6 rounded-2xl border-4 border-amber-400 mb-6 relative text-left shadow-inner">
+                    <div class="text-center border-b-2 border-amber-200 pb-3 mb-3">
+                        <h4 class="title-font text-2xl text-amber-800">SIJIL PENGHARGAAN</h4>
+                        <p class="text-xs text-amber-600 font-bold uppercase tracking-wider">Duta Pelancongan Daerah Jempol</p>
+                    </div>
+                    <p class="text-sm mb-2">Dengan ini diperakukan bahawa:</p>
+                    <h3 id="cert-name" class="title-font text-2xl text-emerald-700 mb-2">Nama Pelancong</h3>
+                    <p class="text-xs text-slate-600 mb-4">Telah berjaya menjelajah kesemua 2 destinasi utama di Daerah Jempol, Negeri Sembilan.</p>
+                    <div class="flex justify-between items-center text-xs font-bold text-slate-500 pt-2 border-t border-amber-200">
+                        <div>SKOR TERKUMPUL: <span id="cert-score" class="text-emerald-600">0</span></div>
+                        <div>COP PASPORT: <span class="text-amber-600">2/2 COMPLETE</span></div>
+                    </div>
+                </div>
+
+                <!-- Kupon Ganjaran Eksklusif -->
+                <div class="bg-gradient-to-r from-emerald-600 to-teal-700 text-white p-5 rounded-2xl border-2 border-dashed border-yellow-300 mb-6 relative shadow-lg text-left">
+                    <div class="flex items-center justify-between gap-2 mb-2">
+                        <span class="bg-yellow-400 text-slate-950 text-xs font-extrabold px-3 py-1 rounded-full uppercase tracking-wider">🎁 Ganjaran Istimewa</span>
+                        <span class="text-xs text-emerald-100 font-semibold">Sah di Destinasi Terpilih</span>
+                    </div>
+                    <h4 class="title-font text-xl text-yellow-300 mb-1">BAUCAR DISKAUN 20% EKO-PELANCONGAN JEMPOL</h4>
+                    <p class="text-xs text-emerald-50 mb-3">Tebus baucar ini untuk aktiviti tapak perkhemahan, sewaan peralatan rakit, atau cenderamata rasmi di Daerah Jempol!</p>
+                    <div class="flex items-center justify-between bg-slate-950/60 p-3 rounded-xl border border-white/20">
+                        <div>
+                            <div class="text-[10px] text-slate-400 uppercase font-bold">Kod Kupon Anda:</div>
+                            <div id="coupon-code" class="pixel-font text-sm sm:text-base text-yellow-400 tracking-wider mt-1">JEMPOL20-XXXX</div>
+                        </div>
+                        <button id="copy-coupon-btn" class="btn btn-warning btn-small m-0" onclick="copyCouponCode()">📋 SALIN</button>
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap gap-3 justify-center">
+                    <button class="btn btn-warning" onclick="downloadCertificate()">📜 MUAT TURUN SIJIL & KUPON</button>
+                    <button class="btn btn-primary" onclick="startGameFlow()">🔄 MAIN SEMULA</button>
+                    <button class="btn btn-alt" onclick="goToMap()">🏠 KEMBALI KE PETA</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* Canvas & Core Declarations */
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Canvas setup for 1080 x 1920 (9:16 Portrait)
+        const V_WIDTH = 1080;
+        const V_HEIGHT = 1920;
+        canvas.width = V_WIDTH;
+        canvas.height = V_HEIGHT;
+
+        let playerProfile = { name: "Pengembara", score: 0, stamps: [false, false] };
+        let highScore = localStorage.getItem('jj_highscore_easy') || 0;
+        let playerLives = 3;
+
+        let gameState = 'MENU';
+        let currentLevel = 1;
+        let isPaused = false;
+        const keys = { left: false, right: false, up: false, down: false, space: false };
+
+        /* Keyboard & Mobile Controls */
+        window.addEventListener('keydown', e => {
+            if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = true;
+            if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = true;
+            if (e.code === 'ArrowUp' || e.code === 'KeyW') keys.up = true;
+            if (e.code === 'ArrowDown' || e.code === 'KeyS') keys.down = true;
+            if (e.code === 'Space') keys.space = true;
+        });
+
+        window.addEventListener('keyup', e => {
+            if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = false;
+            if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = false;
+            if (e.code === 'ArrowUp' || e.code === 'KeyW') keys.up = false;
+            if (e.code === 'ArrowDown' || e.code === 'KeyS') keys.down = false;
+            if (e.code === 'Space') keys.space = false;
+        });
+
+        function setupMobileBtn(id, keyName) {
+            const btn = document.getElementById(id);
+            if (!btn) return;
+            const startHandler = (e) => { e.preventDefault(); keys[keyName] = true; };
+            const endHandler = (e) => { e.preventDefault(); keys[keyName] = false; };
+            btn.addEventListener('touchstart', startHandler);
+            btn.addEventListener('touchend', endHandler);
+            btn.addEventListener('mousedown', startHandler);
+            btn.addEventListener('mouseup', endHandler);
+            btn.addEventListener('mouseleave', endHandler);
+        }
+
+        window.addEventListener('load', () => {
+            setupMobileBtn('btn-left', 'left');
+            setupMobileBtn('btn-right', 'right');
+            setupMobileBtn('btn-jump', 'up');
+            
+            // Start Animation Loop
+            requestAnimationFrame(gameLoop);
+        });
+
+        /* UI Navigation Helper Functions */
+        function showUI(id) {
+            document.getElementById(id).classList.remove('hidden');
+        }
+
+        function hideUI(id) {
+            document.getElementById(id).classList.add('hidden');
+        }
+
+        function hideAllUI() {
+            ['menu-screen', 'map-screen', 'howto-screen', 'pause-screen', 'quiz-screen', 'level-complete-screen', 'victory-screen', 'gameover-screen', 'hud', 'top-ui', 'mobile-controls'].forEach(hideUI);
+        }
+
+        function showMainMenu() {
+            gameState = 'MENU';
+            isPaused = false;
+            hideAllUI();
+            showUI('menu-screen');
+        }
+
+        function startGameFlow() {
+            initAudio();
+            startSoftBGM();
+            const nameInput = document.getElementById('player-name');
+            playerProfile.name = (nameInput && nameInput.value.trim()) ? nameInput.value.trim() : "Pengembara";
+            playerProfile.score = 0;
+            playerProfile.stamps = [false, false];
+            goToMap();
+        }
+
+        function goToMap() {
+            gameState = 'MAP';
+            isPaused = false;
+            hideAllUI();
+            showUI('map-screen');
+            renderMapNodes();
+        }
+
+        function updateLivesDisplay() {
+            let hearts = '';
+            for(let i=0; i<3; i++) {
+                hearts += (i < playerLives) ? '❤️' : '🖤';
+            }
+            const hudLives = document.getElementById('hud-lives');
+            if (hudLives) hudLives.innerText = `NYAWA: ${hearts}`;
+        }
+
+        function loseLife() {
+            if(playerLives > 0) {
+                playerLives--;
+                updateLivesDisplay();
+                playSound('hurt');
+                if(playerLives <= 0) {
+                    setTimeout(() => {
+                        hideAllUI();
+                        showUI('gameover-screen');
+                        gameState = 'GAMEOVER';
+                    }, 300);
+                }
+            }
+        }
+
+        /* Web Audio API Synth Sound System */
+        let audioCtx = null;
+        let isMuted = false;
+        let bgmInterval = null;
+        let bgmStep = 0;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function startSoftBGM() {
+            if (bgmInterval || isMuted) return;
+            initAudio();
+
+            const chords = [
+                [261.63, 329.63, 392.00, 523.25],
+                [220.00, 261.63, 329.63, 440.00],
+                [174.61, 220.00, 261.63, 349.23],
+                [196.00, 246.94, 293.66, 392.00]
+            ];
+
+            const melody = [523.25, 587.33, 659.25, 783.99, 659.25, 587.33, 783.99, 880.00];
+
+            bgmStep = 0;
+            bgmInterval = setInterval(() => {
+                if (isMuted || !audioCtx) return;
+                try {
+                    const now = audioCtx.currentTime;
+                    const chord = chords[Math.floor(bgmStep / 2) % chords.length];
+                    
+                    chord.forEach(freq => {
+                        const osc = audioCtx.createOscillator();
+                        const gain = audioCtx.createGain();
+                        osc.type = 'triangle';
+                        osc.frequency.setValueAtTime(freq, now);
+                        gain.gain.setValueAtTime(0.05, now);
+                        gain.gain.exponentialRampToValueAtTime(0.005, now + 1.2);
+                        osc.connect(gain);
+                        gain.connect(audioCtx.destination);
+                        osc.start(now);
+                        osc.stop(now + 1.2);
+                    });
+
+                    const noteFreq = melody[bgmStep % melody.length];
+                    const oscM = audioCtx.createOscillator();
+                    const gainM = audioCtx.createGain();
+                    oscM.type = 'sine';
+                    oscM.frequency.setValueAtTime(noteFreq, now);
+                    gainM.gain.setValueAtTime(0.08, now);
+                    gainM.gain.exponentialRampToValueAtTime(0.005, now + 0.6);
+                    oscM.connect(gainM);
+                    gainM.connect(audioCtx.destination);
+                    oscM.start(now);
+                    oscM.stop(now + 0.6);
+
+                    bgmStep++;
+                } catch(e) {}
+            }, 500);
+        }
+
+        function stopSoftBGM() {
+            if (bgmInterval) {
+                clearInterval(bgmInterval);
+                bgmInterval = null;
+            }
+        }
+
+        function playSound(type) {
+            if (isMuted || !audioCtx) return;
+            try {
+                const now = audioCtx.currentTime;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                if (type === 'jump') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(220, now);
+                    osc.frequency.exponentialRampToValueAtTime(440, now + 0.15);
+                    gain.gain.setValueAtTime(0.15, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.15);
+                    osc.start(now);
+                    osc.stop(now + 0.15);
+                } else if (type === 'star') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(523.25, now);
+                    osc.frequency.setValueAtTime(659.25, now + 0.08);
+                    osc.frequency.setValueAtTime(783.99, now + 0.16);
+                    gain.gain.setValueAtTime(0.15, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.25);
+                    osc.start(now);
+                    osc.stop(now + 0.25);
+                } else if (type === 'win') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(440, now);
+                    osc.frequency.setValueAtTime(554.37, now + 0.15);
+                    osc.frequency.setValueAtTime(659.25, now + 0.3);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.5);
+                    osc.start(now);
+                    osc.stop(now + 0.5);
+                } else if (type === 'snap') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(260, now);
+                    osc.frequency.exponentialRampToValueAtTime(120, now + 0.1);
+                    gain.gain.setValueAtTime(0.15, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.1);
+                    osc.start(now);
+                    osc.stop(now + 0.1);
+                } else if (type === 'hurt') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(180, now);
+                    osc.frequency.exponentialRampToValueAtTime(50, now + 0.25);
+                    gain.gain.setValueAtTime(0.3, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.25);
+                    osc.start(now);
+                    osc.stop(now + 0.25);
+                } else if (type === 'victory_fanfare') {
+                    const notes = [523.25, 659.25, 783.99, 1046.50];
+                    notes.forEach((freq, idx) => {
+                        const noteOsc = audioCtx.createOscillator();
+                        const noteGain = audioCtx.createGain();
+                        noteOsc.type = 'triangle';
+                        noteOsc.frequency.setValueAtTime(freq, now + (idx * 0.12));
+                        noteGain.gain.setValueAtTime(0.25, now + (idx * 0.12));
+                        noteGain.gain.linearRampToValueAtTime(0.01, now + (idx * 0.12) + 0.6);
+                        noteOsc.connect(noteGain);
+                        noteGain.connect(audioCtx.destination);
+                        noteOsc.start(now + (idx * 0.12));
+                        noteOsc.stop(now + (idx * 0.12) + 0.6);
+                    });
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        function toggleMute() {
+            isMuted = !isMuted;
+            const muteBtn = document.getElementById('mute-btn');
+            if (isMuted) {
+                stopSoftBGM();
+                if (muteBtn) muteBtn.innerText = '🔇 MUZIK: OFF';
+            } else {
+                startSoftBGM();
+                if (muteBtn) muteBtn.innerText = '🎵 MUZIK: ON';
+            }
+        }
+
+        /* Destinasi & Kuiz Data (Jempol Region - Portrait Positions) */
+        const levels = [
+            {
+                id: 1,
+                name: "Rekreasi Ulu Serting",
+                icon: "🏞️",
+                x: 50, y: 32,
+                desc: "Lompat Batu Sungai Ulu Serting",
+                quiz: {
+                    question: "Sungai di Rekreasi Ulu Serting berpunca daripada kawasan pergunungan manakah yang membentuk ekosistem utamanya?",
+                    options: [
+                        "Gunung Ledang",
+                        "Banjaran Titiwangsa",
+                        "Banjaran Crocker"
+                    ],
+                    correct: 1,
+                    fact: "Rekreasi Ulu Serting mendapat bekalan air jernih semula jadi terus daripada kawasan tadahan hujan Banjaran Titiwangsa!"
+                }
+            },
+            {
+                id: 2,
+                name: "Hutan Lipur De Bana",
+                icon: "🌳",
+                x: 50, y: 68,
+                desc: "Misi Laluan Eko-Jambatan De Bana",
+                quiz: {
+                    question: "Hutan Lipur De Bana terletak di dalam Hutan Simpan Kekal yang kaya dengan pelbagai spesies pokok pertukangan bernilai tinggi. Apakah nama Hutan Simpan tersebut?",
+                    options: [
+                        "Hutan Simpan Belum",
+                        "Hutan Simpan Endau",
+                        "Hutan Simpan Pasoh"
+                    ],
+                    correct: 2,
+                    fact: "Hutan Lipur De Bana merupakan sebahagian daripada Hutan Simpan Pasoh yang terkenal sebagai pusat penyelidikan perhutanan dan pemuliharaan spesies pokok Dipterokarp!"
+                }
+            }
+        ];
+
+        function renderMapNodes() {
+            const container = document.getElementById('map-nodes-container');
+            if (!container) return;
+            container.innerHTML = '';
+
+            levels.forEach((lvl, idx) => {
+                const isUnlocked = idx === 0 || playerProfile.stamps[idx - 1];
+                const isCompleted = playerProfile.stamps[idx];
+
+                const node = document.createElement('div');
+                node.className = `absolute transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center cursor-pointer transition-transform hover:scale-110 z-10`;
+                node.style.left = `${lvl.x}%`;
+                node.style.top = `${lvl.y}%`;
+
+                let statusBadge = isCompleted ? '✅' : (isUnlocked ? '🌟' : '🔒');
+                let bgStyle = isCompleted ? 'bg-emerald-500 border-emerald-300' : (isUnlocked ? 'bg-yellow-400 border-white pulse-animation' : 'bg-slate-700 border-slate-500 opacity-80');
+
+                node.innerHTML = `
+                    <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-full border-4 ${bgStyle} flex items-center justify-center text-3xl shadow-xl">
+                        ${lvl.icon}
+                    </div>
+                    <div class="mt-2 bg-slate-900/90 text-white text-xs sm:text-sm font-bold px-3 py-1 rounded-full border border-white/20 whitespace-nowrap shadow-md">
+                        ${statusBadge} ${lvl.name}
+                    </div>
+                `;
+
+                if (isUnlocked) {
+                    node.onclick = () => loadGame(lvl.id);
+                }
+
+                container.appendChild(node);
+            });
+        }
+
+        function loadGame(levelId) {
+            currentLevel = levelId;
+            gameState = `GAME${levelId}`;
+            isPaused = false;
+            playerLives = 3;
+            keys.left=false; keys.right=false; keys.up=false; keys.down=false; keys.space=false;
+            
+            hideAllUI();
+            showUI('hud');
+            showUI('top-ui');
+            showUI('mobile-controls');
+            updateHUDText();
+            updateLivesDisplay();
+
+            if (levelId === 1) initGame1();
+            else if (levelId === 2) initGame2();
+        }
+
+        function updateHUDText() {
+            const lvl = levels[currentLevel - 1];
+            document.getElementById('hud-score').innerText = `SKOR: ${playerProfile.score}`;
+            document.getElementById('hud-objective').innerText = `OBJEKTIF: ${lvl.desc.toUpperCase()}`;
+            const completedCount = playerProfile.stamps.filter(Boolean).length;
+            document.getElementById('hud-passport').innerText = `COP: ${completedCount}/${levels.length}`;
+        }
+
+        function togglePause() {
+            isPaused = !isPaused;
+            if (isPaused) {
+                showUI('pause-screen');
+            } else {
+                hideUI('pause-screen');
+            }
+        }
+
+        function restartCurrentGame() {
+            loadGame(currentLevel);
+        }
+
+        function triggerQuiz() {
+            gameState = 'QUIZ';
+            hideAllUI();
+            showUI('quiz-screen');
+
+            const lvl = levels[currentLevel - 1];
+            const q = lvl.quiz;
+
+            document.getElementById('quiz-question').innerText = q.question;
+            document.getElementById('quiz-feedback').classList.add('hidden');
+            
+            const continueBtn = document.getElementById('quiz-continue-btn');
+            continueBtn.classList.add('hidden');
+
+            if (currentLevel === levels.length) {
+                continueBtn.innerHTML = 'LIHAT SIJIL PENGHARGAAN 🏆';
+            } else {
+                continueBtn.innerHTML = 'LOKASI SETERUSNYA 🗺️';
+            }
+
+            const optionsContainer = document.getElementById('quiz-options');
+            optionsContainer.innerHTML = '';
+
+            q.options.forEach((optText, idx) => {
+                const btn = document.createElement('button');
+                btn.className = "w-full text-left font-bold text-slate-900 bg-amber-100 hover:bg-yellow-300 active:bg-yellow-400 border-2 border-yellow-500 rounded-2xl px-5 py-3.5 text-base sm:text-lg shadow-md transition-all flex items-center gap-3";
+                btn.innerHTML = `<span class="bg-amber-500 text-white w-7 h-7 rounded-full inline-flex items-center justify-center text-sm font-extrabold flex-shrink-0">${String.fromCharCode(65 + idx)}</span> <span class="leading-snug">${optText}</span>`;
+                btn.onclick = () => checkQuizAnswer(idx, q.correct, btn);
+                optionsContainer.appendChild(btn);
+            });
+        }
+
+        function checkQuizAnswer(selectedIdx, correctIdx, btnElement) {
+            const feedback = document.getElementById('quiz-feedback');
+            const feedbackTitle = document.getElementById('quiz-feedback-title');
+            const fact = document.getElementById('quiz-fact');
+            const continueBtn = document.getElementById('quiz-continue-btn');
+            const lvl = levels[currentLevel - 1];
+
+            if (selectedIdx === correctIdx) {
+                playSound('win');
+                btnElement.className = "w-full text-left font-bold text-white bg-emerald-600 border-2 border-emerald-400 rounded-2xl px-5 py-3.5 text-base sm:text-lg shadow-md flex items-center gap-3";
+                
+                feedbackTitle.innerText = "🎯 JAWAPAN BETUL!";
+                feedbackTitle.className = "font-bold text-lg mb-1 text-emerald-400";
+                fact.innerText = lvl.quiz.fact;
+
+                feedback.classList.remove('hidden');
+                continueBtn.classList.remove('hidden');
+
+                const allBtns = document.getElementById('quiz-options').querySelectorAll('button');
+                allBtns.forEach(b => b.onclick = null);
+            } else {
+                playSound('hurt');
+                btnElement.className = "w-full text-left font-bold text-white bg-rose-600 border-2 border-rose-400 rounded-2xl px-5 py-3.5 text-base sm:text-lg shadow-md opacity-70 flex items-center gap-3";
+                btnElement.disabled = true;
+
+                feedbackTitle.innerText = "❌ JAWAPAN KURANG TEPAT!";
+                feedbackTitle.className = "font-bold text-lg mb-1 text-rose-400";
+                fact.innerText = "Sila berfikir dan cuba lagi jawapan yang lain!";
+
+                feedback.classList.remove('hidden');
+            }
+        }
+
+        function completeLevelAfterQuiz() {
+            playerProfile.stamps[currentLevel - 1] = true;
+            playerProfile.score += 200;
+            
+            if (playerProfile.stamps.every(Boolean)) {
+                showVictoryScreen();
+            } else {
+                goToMap();
+            }
+        }
+
+        function showVictoryScreen() {
+            gameState = 'VICTORY';
+            hideAllUI();
+            showUI('victory-screen');
+
+            playSound('victory_fanfare');
+
+            document.getElementById('cert-name').innerText = playerProfile.name;
+            document.getElementById('cert-score').innerText = playerProfile.score;
+
+            // Jana kod kupon unik berdasarkan nama pemain & nombor rawak
+            const cleanName = playerProfile.name.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 4) || 'USER';
+            const randomNum = Math.floor(1000 + Math.random() * 9000);
+            playerProfile.couponCode = `JEMPOL20-${cleanName}${randomNum}`;
+            document.getElementById('coupon-code').innerText = playerProfile.couponCode;
+
+            const copyBtn = document.getElementById('copy-coupon-btn');
+            if (copyBtn) copyBtn.innerText = '📋 SALIN';
+
+            if (playerProfile.score > highScore) {
+                highScore = playerProfile.score;
+                localStorage.setItem('jj_highscore_easy', highScore);
+            }
+        }
+
+        function copyCouponCode() {
+            const codeText = playerProfile.couponCode || document.getElementById('coupon-code').innerText;
+            const tempInput = document.createElement('input');
+            tempInput.value = codeText;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempInput);
+
+            playSound('star');
+            const copyBtn = document.getElementById('copy-coupon-btn');
+            if (copyBtn) {
+                copyBtn.innerText = '✅ DISALIN!';
+                setTimeout(() => {
+                    copyBtn.innerText = '📋 SALIN';
+                }, 2500);
+            }
+        }
+
+        function showHighscore() {
+            alert(`🏆 SKOR TERTINGGI REKOD: ${highScore} MATA`);
+        }
+
+        function downloadCertificate() {
+            const certCanvas = document.createElement('canvas');
+            certCanvas.width = 1000;
+            certCanvas.height = 760;
+            const cctx = certCanvas.getContext('2d');
+
+            cctx.fillStyle = '#fef3c7';
+            cctx.fillRect(0, 0, 1000, 760);
+
+            cctx.strokeStyle = '#d97706';
+            cctx.lineWidth = 16;
+            cctx.strokeRect(20, 20, 960, 720);
+
+            cctx.fillStyle = '#92400e';
+            cctx.font = 'bold 42px sans-serif';
+            cctx.textAlign = 'center';
+            cctx.fillText('SIJIL PENGHARGAAN', 500, 110);
+
+            cctx.fillStyle = '#b45309';
+            cctx.font = 'bold 22px sans-serif';
+            cctx.fillText('DUTA PELANCONGAN DAERAH JEMPOL', 500, 150);
+
+            cctx.fillStyle = '#1e293b';
+            cctx.font = '20px sans-serif';
+            cctx.fillText('Dengan ini diperakukan bahawa:', 500, 230);
+
+            cctx.fillStyle = '#047857';
+            cctx.font = 'bold 48px sans-serif';
+            cctx.fillText(playerProfile.name.toUpperCase(), 500, 300);
+
+            cctx.fillStyle = '#334155';
+            cctx.font = '20px sans-serif';
+            cctx.fillText('Telah berjaya menjelajah kesemua 2 destinasi utama di Daerah Jempol,', 500, 375);
+            cctx.fillText('Negeri Sembilan dan menyempurnakan Misi Pasport Pelancongan.', 500, 410);
+
+            cctx.fillStyle = '#d97706';
+            cctx.font = 'bold 24px sans-serif';
+            cctx.fillText(`JUMLAH SKOR: ${playerProfile.score} | COP PASPORT: 2/2`, 500, 480);
+
+            // Bahagian Kupon Ganjaran pada Sijil
+            cctx.fillStyle = '#065f46';
+            cctx.fillRect(150, 520, 700, 120);
+            cctx.strokeStyle = '#facc15';
+            cctx.lineWidth = 4;
+            cctx.setLineDash([10, 6]);
+            cctx.strokeRect(150, 520, 700, 120);
+            cctx.setLineDash([]);
+
+            cctx.fillStyle = '#fde047';
+            cctx.font = 'bold 20px sans-serif';
+            cctx.fillText('🎁 BAUCAR DISKAUN 20% EKO-PELANCONGAN JEMPOL', 500, 565);
+
+            cctx.fillStyle = '#ffffff';
+            cctx.font = 'bold 26px monospace';
+            cctx.fillText(`KOD KUPON: ${playerProfile.couponCode || 'JEMPOL20-VIP'}`, 500, 610);
+
+            cctx.fillStyle = '#64748b';
+            cctx.font = '16px sans-serif';
+            cctx.fillText(`Tarikh Dikeluarkan: ${new Date().toLocaleDateString('ms-MY')}`, 500, 690);
+
+            const link = document.createElement('a');
+            link.download = `Sijil_Kupon_JelajahJempol_${playerProfile.name}.png`;
+            link.href = certCanvas.toDataURL();
+            link.click();
+        }
+
+        /* EXPLORER CHARACTER SPRITE DRAWING */
+        let gameEnv = {};
+
+        function drawPlayer(x, y, vx, vy, isGrounded, isRafting = false) {
+            ctx.save();
+            ctx.translate(x, y);
+
+            const animTime = Date.now() / 90;
+            const isMoving = Math.abs(vx) > 0.2;
+            const facingLeft = vx < -0.1;
+
+            if (facingLeft) ctx.scale(-1, 1);
+
+            // 1. BACKPACK
+            const backpackBounce = !isGrounded ? -4 : (isMoving ? Math.abs(Math.sin(animTime)) * 3 : 0);
+            ctx.fillStyle = '#92400e';
+            ctx.beginPath();
+            ctx.roundRect(-20, -44 + backpackBounce, 10, 24, 4);
+            ctx.fill();
+
+            // 2. LEGS & SHOES
+            let legSwing = 0;
+
+            if (!isGrounded && !isRafting) {
+                legSwing = vy < 0 ? 8 : -6;
+            } else if (isMoving && isGrounded && !isRafting) {
+                legSwing = Math.sin(animTime) * 10;
+            }
+
+            ctx.fillStyle = '#1e3a8a';
+            ctx.fillRect(-5 - legSwing, -16, 5, 14);
+            ctx.fillStyle = '#451a03';
+            ctx.fillRect(-7 - legSwing, -3, 8, 5);
+
+            ctx.fillStyle = '#1d4ed8';
+            ctx.fillRect(1 + legSwing, -16, 5, 14);
+            ctx.fillStyle = '#451a03';
+            ctx.fillRect(-1 + legSwing, -3, 8, 5);
+
+            // 3. TORSO
+            const bodyYOffset = !isGrounded ? -2 : (isMoving ? Math.abs(Math.sin(animTime)) * 2 : 0);
+            ctx.fillStyle = '#16a34a';
+            ctx.beginPath();
+            ctx.roundRect(-10, -42 + bodyYOffset, 20, 26, 4);
+            ctx.fill();
+
+            ctx.fillStyle = '#fef08a';
+            ctx.fillRect(-2, -42 + bodyYOffset, 4, 18);
+
+            // 4. ARMS & PADDLE
+            if (isRafting) {
+                const paddleAngle = Math.sin(Date.now() / 150) * 0.2;
+                ctx.save();
+                ctx.rotate(paddleAngle);
+                
+                ctx.fillStyle = '#b45309';
+                ctx.fillRect(-35, -28, 70, 5);
+                
+                ctx.fillStyle = '#78350f';
+                ctx.beginPath();
+                ctx.roundRect(-45, -34, 12, 17, 3);
+                ctx.roundRect(33, -34, 12, 17, 3);
+                ctx.fill();
+                ctx.restore();
+
+                ctx.fillStyle = '#15803d';
+                ctx.fillRect(-14, -34, 8, 6);
+                ctx.fillRect(6, -34, 8, 6);
+
+                ctx.fillStyle = '#fde047';
+                ctx.beginPath();
+                ctx.arc(-9, -31, 3.5, 0, Math.PI * 2);
+                ctx.arc(9, -31, 3.5, 0, Math.PI * 2);
+                ctx.fill();
+            } else {
+                let armSwing = isMoving ? Math.sin(animTime) * 6 : 0;
+
+                ctx.fillStyle = '#15803d';
+                ctx.fillRect(-15, -38 + bodyYOffset + armSwing, 5, 11);
+                ctx.fillStyle = '#fde047';
+                ctx.beginPath();
+                ctx.arc(-12.5, -25 + bodyYOffset + armSwing, 3.5, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#15803d';
+                ctx.fillRect(10, -38 + bodyYOffset - armSwing, 5, 11);
+                ctx.fillStyle = '#fde047';
+                ctx.beginPath();
+                ctx.arc(12.5, -25 + bodyYOffset - armSwing, 3.5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // 5. HEAD & FACE
+            ctx.fillStyle = '#fde047';
+            ctx.beginPath();
+            ctx.arc(0, -52 + bodyYOffset, 13, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#0f172a';
+            ctx.beginPath();
+            ctx.arc(3, -54 + bodyYOffset, 2.5, 0, Math.PI * 2);
+            ctx.arc(9, -54 + bodyYOffset, 2.5, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.strokeStyle = '#0f172a';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.arc(6, -50 + bodyYOffset, 4, 0.1 * Math.PI, 0.9 * Math.PI);
+            ctx.stroke();
+
+            // 6. HAT
+            ctx.fillStyle = '#d97706';
+            ctx.beginPath();
+            ctx.ellipse(0, -62 + bodyYOffset, 18, 5, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.roundRect(-10, -74 + bodyYOffset, 20, 12, [6, 6, 0, 0]);
+            ctx.fill();
+            ctx.fillStyle = '#b91c1c';
+            ctx.fillRect(-10, -65 + bodyYOffset, 20, 3);
+
+            ctx.restore();
+        }
+
+        /* ----- GAME 1: REKREASI ULU SERTING (LOMPAT BATU - PORTRAIT) ----- */
+        function initGame1() {
+            gameEnv = {
+                player: { x: 150, y: 1550, vx: 0, vy: 0, grounded: false, safeX: 150, safeY: 1550 },
+                rocks: [
+                    { x: 100, y: 1650, w: 180 },
+                    { x: 400, y: 1450, w: 180 },
+                    { x: 720, y: 1250, w: 180 },
+                    { x: 380, y: 1050, w: 180 },
+                    { x: 720, y: 850, w: 180 },
+                    { x: 450, y: 650, w: 220 }
+                ],
+                stars: [
+                    { x: 490, y: 1370, collected: false },
+                    { x: 810, y: 1170, collected: false },
+                    { x: 470, y: 970, collected: false }
+                ],
+                goal: { x: 550, y: 550 }
+            };
+        }
+
+        function updateGame1() {
+            const p = gameEnv.player;
+
+            if (keys.left) p.vx = Math.max(p.vx - 1.2, -9);
+            else if (keys.right) p.vx = Math.min(p.vx + 1.2, 9);
+            else p.vx *= 0.78;
+
+            if ((keys.space || keys.up) && p.grounded) {
+                p.vy = -20;
+                p.grounded = false;
+                playSound('jump');
+            }
+
+            p.vy += 0.85;
+            p.x += p.vx;
+            p.y += p.vy;
+
+            p.grounded = false;
+            gameEnv.rocks.forEach(r => {
+                if (p.x > r.x - 20 && p.x < r.x + r.w + 20 && p.y >= r.y - 40 && p.y <= r.y - 10 && p.vy >= 0) {
+                    p.grounded = true;
+                    p.vy = 0;
+                    p.y = r.y - 40;
+                    p.safeX = p.x;
+                    p.safeY = p.y;
+                }
+            });
+
+            if (p.y > V_HEIGHT + 50) {
+                loseLife();
+                p.x = p.safeX;
+                p.y = p.safeY;
+                p.vx = 0;
+                p.vy = 0;
+            }
+
+            gameEnv.stars.forEach(s => {
+                if (!s.collected && Math.hypot(p.x - s.x, p.y - s.y) < 50) {
+                    s.collected = true;
+                    playerProfile.score += 50;
+                    playSound('star');
+                    updateHUDText();
+                }
+            });
+
+            if (p.y <= gameEnv.goal.y + 40 && Math.abs(p.x - gameEnv.goal.x) < 80) {
+                triggerQuiz();
+            }
+        }
+
+        function drawGame1() {
+            ctx.fillStyle = '#0284c7';
+            ctx.fillRect(0, 0, V_WIDTH, V_HEIGHT);
+
+            ctx.fillStyle = '#38bdf8';
+            for (let i = 0; i < V_HEIGHT; i += 120) {
+                ctx.fillRect(0, i + (Date.now() / 20 % 120), V_WIDTH, 12);
+            }
+
+            gameEnv.rocks.forEach(r => {
+                ctx.fillStyle = '#64748b';
+                ctx.beginPath();
+                ctx.roundRect(r.x, r.y - 20, r.w, 90, 25);
+                ctx.fill();
+                ctx.fillStyle = '#94a3b8';
+                ctx.fillRect(r.x + 10, r.y - 20, r.w - 20, 15);
+            });
+
+            gameEnv.stars.forEach(s => {
+                if (!s.collected) {
+                    ctx.font = '48px sans-serif';
+                    ctx.fillText('⭐', s.x - 24, s.y);
+                }
+            });
+
+            ctx.font = '60px sans-serif';
+            ctx.fillText('🚩', gameEnv.goal.x - 30, gameEnv.goal.y);
+
+            drawPlayer(gameEnv.player.x, gameEnv.player.y, gameEnv.player.vx, gameEnv.player.vy, gameEnv.player.grounded);
+        }
+
+        /* ----- GAME 2: HUTAN LIPUR DE BANA (ECO-BRIDGE WALK - PORTRAIT) ----- */
+        function initGame2() {
+            gameEnv = {
+                player: { x: 100, y: 1450, vx: 0, vy: 0, grounded: false, safeX: 100, safeY: 1450 },
+                bridgeY: 1550,
+                animals: [
+                    { x: 350, y: 1510, kind: 'boar', w: 60, h: 40, dir: -1, minX: 250, maxX: 480 },
+                    { x: 650, y: 1522, kind: 'snake', w: 70, h: 30, dir: 1, minX: 550, maxX: 750 }
+                ],
+                leaves: [
+                    { x: 300, y: 1420, collected: false },
+                    { x: 600, y: 1420, collected: false },
+                    { x: 850, y: 1420, collected: false }
+                ],
+                goalX: 960
+            };
+        }
+
+        function updateGame2() {
+            const p = gameEnv.player;
+
+            if (keys.left) p.vx = Math.max(p.vx - 1.2, -9);
+            else if (keys.right) p.vx = Math.min(p.vx + 1.2, 9);
+            else p.vx *= 0.78;
+
+            if ((keys.space || keys.up) && p.grounded) {
+                p.vy = -20;
+                p.grounded = false;
+                playSound('jump');
+            }
+
+            p.vy += 0.85;
+            p.x += p.vx;
+            p.y += p.vy;
+
+            if (p.y >= gameEnv.bridgeY - 40) {
+                p.grounded = true;
+                p.vy = 0;
+                p.y = gameEnv.bridgeY - 40;
+                p.safeX = p.x;
+                p.safeY = p.y;
+            }
+
+            gameEnv.animals.forEach(a => {
+                a.x += a.dir * 2.2;
+                if (a.x <= a.minX || a.x >= a.maxX) {
+                    a.dir *= -1;
+                }
+
+                if (!a.hitCooldown && p.x > a.x - 30 && p.x < a.x + a.w + 15 && p.y > a.y - 45) {
+                    a.hitCooldown = true;
+                    loseLife();
+                    p.vx = -8;
+                    p.vy = -8;
+                    setTimeout(() => a.hitCooldown = false, 1200);
+                }
+            });
+
+            gameEnv.leaves.forEach(l => {
+                if (!l.collected && Math.hypot(p.x - l.x, p.y - l.y) < 50) {
+                    l.collected = true;
+                    playerProfile.score += 50;
+                    playSound('star');
+                    updateHUDText();
+                }
+            });
+
+            if (p.x >= gameEnv.goalX) {
+                triggerQuiz();
+            }
+        }
+
+        function drawGame2() {
+            ctx.fillStyle = '#064e3b';
+            ctx.fillRect(0, 0, V_WIDTH, V_HEIGHT);
+
+            ctx.fillStyle = '#047857';
+            for (let i = 80; i < V_WIDTH; i += 240) {
+                ctx.fillRect(i, 0, 60, V_HEIGHT);
+            }
+
+            ctx.fillStyle = '#78350f';
+            ctx.fillRect(0, gameEnv.bridgeY, V_WIDTH, 30);
+
+            ctx.strokeStyle = '#f59e0b';
+            ctx.lineWidth = 6;
+            ctx.beginPath();
+            ctx.moveTo(0, gameEnv.bridgeY - 50);
+            ctx.lineTo(V_WIDTH, gameEnv.bridgeY - 50);
+            ctx.stroke();
+
+            gameEnv.animals.forEach(a => {
+                ctx.save();
+                ctx.translate(a.x, a.y);
+                if (a.dir > 0) ctx.scale(-1, 1);
+
+                if (a.kind === 'boar') {
+                    const legAnim = Math.sin(Date.now() / 80) * 5;
+
+                    ctx.fillStyle = '#271911';
+                    ctx.fillRect(-20 + legAnim, 20, 8, 16);
+                    ctx.fillRect(-6 - legAnim, 20, 8, 16);
+                    ctx.fillRect(8 + legAnim, 20, 8, 16);
+                    ctx.fillRect(20 - legAnim, 20, 8, 16);
+
+                    ctx.fillStyle = '#451a03';
+                    ctx.beginPath();
+                    ctx.ellipse(0, 8, 32, 22, 0, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.fillStyle = '#1c0a00';
+                    ctx.fillRect(-24, -16, 36, 6);
+
+                    ctx.fillStyle = '#451a03';
+                    ctx.beginPath();
+                    ctx.arc(-24, 4, 15, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.fillStyle = '#271911';
+                    ctx.beginPath();
+                    ctx.arc(-20, -8, 6, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = '#fef08a';
+                    ctx.beginPath();
+                    ctx.arc(-30, -1, 3.5, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.fillStyle = '#ffffff';
+                    ctx.beginPath();
+                    ctx.moveTo(-33, 8);
+                    ctx.lineTo(-39, 0);
+                    ctx.lineTo(-31, 4);
+                    ctx.fill();
+                } else if (a.kind === 'snake') {
+                    const wave = Math.sin(Date.now() / 100) * 4;
+
+                    ctx.strokeStyle = '#15803d';
+                    ctx.lineWidth = 14;
+                    ctx.lineCap = 'round';
+                    ctx.beginPath();
+                    ctx.moveTo(-32, 16 + wave);
+                    ctx.quadraticCurveTo(-14, 5 - wave, 0, 16 + wave);
+                    ctx.quadraticCurveTo(14, 27 - wave, 30, 16 + wave);
+                    ctx.stroke();
+
+                    ctx.strokeStyle = '#facc15';
+                    ctx.lineWidth = 5;
+                    ctx.beginPath();
+                    ctx.moveTo(-20, 10 + wave);
+                    ctx.lineTo(-10, 16 - wave);
+                    ctx.moveTo(8, 20 + wave);
+                    ctx.lineTo(16, 14 - wave);
+                    ctx.stroke();
+
+                    ctx.fillStyle = '#166534';
+                    ctx.beginPath();
+                    ctx.arc(-35, 16 + wave, 9, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = '#ef4444';
+                    ctx.beginPath();
+                    ctx.arc(-38, 13 + wave, 3, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.strokeStyle = '#ef4444';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(-44, 16 + wave);
+                    ctx.lineTo(-51, 16 + wave);
+                    ctx.lineTo(-54, 13 + wave);
+                    ctx.moveTo(-51, 16 + wave);
+                    ctx.lineTo(-54, 19 + wave);
+                    ctx.stroke();
+                }
+
+                ctx.restore();
+            });
+
+            gameEnv.leaves.forEach(l => {
+                if (!l.collected) {
+                    ctx.font = '44px sans-serif';
+                    ctx.fillText('🍃', l.x - 22, l.y);
+                }
+            });
+
+            ctx.font = '64px sans-serif';
+            ctx.fillText('⛺', gameEnv.goalX - 15, gameEnv.bridgeY - 35);
+            ctx.font = 'bold 22px sans-serif';
+            ctx.fillStyle = '#fef08a';
+            ctx.fillText('POS KANOPY', gameEnv.goalX - 45, gameEnv.bridgeY - 105);
+
+            drawPlayer(gameEnv.player.x, gameEnv.player.y, gameEnv.player.vx, gameEnv.player.vy, gameEnv.player.grounded);
+        }
+
+        /* MAIN GAME LOOP */
+        function gameLoop() {
+            if (!isPaused) {
+                if (gameState === 'GAME1') {
+                    updateGame1();
+                    drawGame1();
+                } else if (gameState === 'GAME2') {
+                    updateGame2();
+                    drawGame2();
+                } else if (gameState === 'MENU' || gameState === 'MAP' || gameState === 'QUIZ' || gameState === 'VICTORY' || gameState === 'GAMEOVER') {
+                    ctx.fillStyle = '#0f172a';
+                    ctx.fillRect(0, 0, V_WIDTH, V_HEIGHT);
+                }
+            }
+            requestAnimationFrame(gameLoop);
+        }
+    </script>
+</body>
+</html>
